@@ -109,64 +109,115 @@
     </div>
   </div>
 
-  <script>
-    // Load saved items on page load
-    document.addEventListener('DOMContentLoaded', loadChecklist);
+    <script>
+    // Encryption configuration
+    const ENCRYPTION_CONFIG = {
+      name: 'AES-GCM',
+      length: 256,
+      iterations: 100000,
+      salt: new TextEncoder().encode('static-salt-123'),
+      passphrase: 'secret-passphrase'
+    };
 
-    function createListItem(text = '', checked = false) {
-      const id = Date.now().toString(); // Unique ID
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
-        <input type="text" value="${text}" placeholder="Enter item...">
-        <span class="delete-btn" onclick="deleteItem(this)">✕</span>
-      `;
-      return li;
+    // Generate crypto key
+    async function getCryptoKey() {
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(ENCRYPTION_CONFIG.passphrase),
+        {name: 'PBKDF2'},
+        false,
+        ['deriveKey']
+      );
+
+      return crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: ENCRYPTION_CONFIG.salt,
+          iterations: ENCRYPTION_CONFIG.iterations,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        {name: ENCRYPTION_CONFIG.name, length: ENCRYPTION_CONFIG.length},
+        true,
+        ['encrypt', 'decrypt']
+      );
     }
 
-    function addItem() {
-      const input = document.getElementById('newItem');
-      const checklist = document.getElementById('checklist');
+    // Encrypt data
+    async function encrypt(data) {
+      const key = await getCryptoKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(data);
       
-      if (input.value.trim()) {
-        checklist.appendChild(createListItem(input.value));
-        input.value = '';
-        saveChecklist();
-      }
+      const ciphertext = await crypto.subtle.encrypt(
+        {name: ENCRYPTION_CONFIG.name, iv},
+        key,
+        encoded
+      );
+
+      return {
+        iv: Array.from(iv),
+        ciphertext: Array.from(new Uint8Array(ciphertext))
+      };
     }
 
-    function deleteItem(element) {
-      element.parentElement.remove();
-      saveChecklist();
+    // Decrypt data
+    async function decrypt(encrypted) {
+      const key = await getCryptoKey();
+      const iv = new Uint8Array(encrypted.iv);
+      const ciphertext = new Uint8Array(encrypted.ciphertext);
+      
+      const decrypted = await crypto.subtle.decrypt(
+        {name: ENCRYPTION_CONFIG.name, iv},
+        key,
+        ciphertext
+      );
+
+      return new TextDecoder().decode(decrypted);
     }
 
-    function resetChecklist() {
-      const checklist = document.getElementById('checklist');
-      checklist.innerHTML = '';
-      localStorage.removeItem('checklist');
-    }
-
-    function saveChecklist() {
+    // Modified save/load functions with encryption
+    async function saveChecklist() {
       const items = Array.from(document.querySelectorAll('.checklist li')).map(li => ({
         text: li.querySelector('input[type="text"]').value,
         checked: li.querySelector('input[type="checkbox"]').checked
       }));
-      localStorage.setItem('checklist', JSON.stringify(items));
-    }
-
-    function loadChecklist() {
-      const savedItems = JSON.parse(localStorage.getItem('checklist')) || [];
-      const checklist = document.getElementById('checklist');
       
-      savedItems.forEach(item => {
-        const li = createListItem(item.text, item.checked);
-        checklist.appendChild(li);
-      });
+      const encrypted = await encrypt(JSON.stringify(items));
+      localStorage.setItem('checklist', JSON.stringify(encrypted));
     }
 
-    // Save on any change
-    document.getElementById('checklist').addEventListener('input', saveChecklist);
-    document.getElementById('checklist').addEventListener('change', saveChecklist);
+    async function loadChecklist() {
+      const encryptedData = localStorage.getItem('checklist');
+      if (!encryptedData) return;
+
+      try {
+        const decrypted = await decrypt(JSON.parse(encryptedData));
+        const savedItems = JSON.parse(decrypted);
+        const checklist = document.getElementById('checklist');
+        
+        savedItems.forEach(item => {
+          const li = createListItem(item.text, item.checked);
+          checklist.appendChild(li);
+        });
+      } catch (error) {
+        console.error('Decryption failed:', error);
+        localStorage.removeItem('checklist');
+      }
+    }
+
+    // Update event listeners to handle async operations
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChecklist().catch(console.error);
+    });
+
+    document.getElementById('checklist').addEventListener('input', () => {
+      saveChecklist().catch(console.error);
+    });
+
+    document.getElementById('checklist').addEventListener('change', () => {
+      saveChecklist().catch(console.error);
+    });
   </script>
 </body>
 </html>
