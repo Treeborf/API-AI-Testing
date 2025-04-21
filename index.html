@@ -41,13 +41,18 @@
   }
 
   document.getElementById("ask").addEventListener("click", async () => {
-    if (!qa) return;
-    
     const context = String(document.getElementById("context").value.trim());
     const question = String(document.getElementById("question").value.trim());
+    const answerEl = document.getElementById("answer");
 
     if (!context || !question) {
       answerEl.textContent = "⚠️ Please fill out both context and question.";
+      return;
+    }
+
+    // Type checks
+    if (typeof question !== 'string' || typeof context !== 'string') {
+      answerEl.textContent = "❌ Inputs must be strings.";
       return;
     }
 
@@ -62,10 +67,7 @@
       // const context = "Transformers.js is a JS library for NLP.";
       // const question = "What is Transformers.js?";
 
-      const result = await qa({
-        question: JSON.parse(JSON.stringify(question)),
-        context: JSON.parse(JSON.stringify(context))
-      });
+      const result = await qa({ question, context });
       answerEl.textContent = `✅ Answer: ${result.answer}`;
     } catch (err) {
       console.error("Pipeline error:", err);
