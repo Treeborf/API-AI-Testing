@@ -1,14 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>Transformers.js QA</title>
 </head>
 <body>
-  <h1>Ask a Question</h1>
-  <textarea id="context" rows="4" cols="50">France is a country in Europe. Its capital is Paris.</textarea><br>
-  <input id="question" value="What is the capital of France?"><br>
-  <button id="ask">Ask</button>
-  <p id="answer">Answer will appear here...</p>
+  <h1>Ask a Question (Transformers.js)</h1>
+
+  <label for="context">🧠 Context:</label><br>
+  <textarea id="context" rows="6" cols="60" placeholder="Paste some context here..."></textarea><br><br>
+
+  <label for="question">❓ Question:</label><br>
+  <input id="question" type="text" size="60" placeholder="Type your question here..."><br><br>
+
+  <button id="ask">Ask!</button>
+
+  <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
 
   <script type="module">
     import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
@@ -18,26 +25,28 @@
     });
 
     document.getElementById("ask").addEventListener("click", async () => {
-      const context = document.getElementById("context").value;
-      const question = document.getElementById("question").value;
+      const context = document.getElementById("context").value.trim();
+      const question = document.getElementById("question").value.trim();
+      const answerEl = document.getElementById("answer");
 
-      // ✅ Check both are strings
-      if (typeof question !== "string" || typeof context !== "string") {
-        alert("Please enter both a question and context.");
+      if (!context || !question) {
+        answerEl.textContent = "⚠️ Please fill out both context and question.";
         return;
       }
 
       try {
+        answerEl.textContent = "⏳ Thinking...";
         const result = await qa({ question, context });
-        document.getElementById("answer").textContent = `Answer: ${result.answer}`;
+        answerEl.textContent = `✅ Answer: ${result.answer}`;
       } catch (err) {
         console.error(err);
-        document.getElementById("answer").textContent = "Error occurred during QA.";
+        answerEl.textContent = "❌ Something went wrong. Check console for details.";
       }
     });
   </script>
 </body>
 </html>
+
 
 
 
