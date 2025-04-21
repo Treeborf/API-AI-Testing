@@ -17,58 +17,65 @@
 
   <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
 
-  <script>
-    // Initialize pipeline outside event handler
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+
+    // Initialize pipeline with proper configuration
     let qa;
-
-    async function initializePipeline() {
-      const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
-      qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad");
-    }
-
-    // Initialize on window load
-    window.addEventListener('load', async () => {
+    (async function init() {
       try {
-        await initializePipeline();
+        qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad", {
+          quantized: true,  // Ensure model quantization
+          progress_callback: (info) => console.log('Loading:', info)
+        });
+        console.log("Model loaded successfully");
       } catch (error) {
-        console.error('Pipeline initialization failed:', error);
+        console.error("Initialization error:", error);
       }
-    });
+    })();
 
     document.getElementById("ask").addEventListener("click", async () => {
-      const context = document.getElementById("context").value.trim();
-      const question = document.getElementById("question").value.trim();
+      const contextInput = document.getElementById("context");
+      const questionInput = document.getElementById("question");
       const answerEl = document.getElementById("answer");
 
-      // Enhanced input validation
+      // Enhanced input sanitization
+      const context = String(contextInput.value).trim().normalize("NFKC");
+      const question = String(questionInput.value).trim().normalize("NFKC");
+
       if (!context || !question) {
-        answerEl.textContent = "⚠️ Please fill out both context and question.";
+        answerEl.textContent = "⚠️ Please fill out both fields";
         return;
       }
 
-      // Verify string types explicitly
-      if (typeof context !== 'string' || typeof question !== 'string') {
-        answerEl.textContent = "❌ Invalid input types";
+      // Additional validation for empty strings after trimming
+      if (context.length < 10 || question.length < 3) {
+        answerEl.textContent = "❌ Inputs too short";
         return;
       }
 
       try {
-        answerEl.textContent = "⏳ Thinking...";
+        answerEl.textContent = "⏳ Processing...";
         
-        // Force string conversion
-        const result = await qa({
-          question: String(question),
-          context: String(context)
-        });
+        // Verify pipeline readiness
+        if (!qa) throw new Error("AI model not loaded yet");
         
+        // Force string conversion and log inputs
+        const sanitizedInputs = {
+          question: question.slice(0, 500),  // Limit input length
+          context: context.slice(0, 2000)
+        };
+        console.log("Processing inputs:", sanitizedInputs);
+
+        const result = await qa(sanitizedInputs);
         answerEl.textContent = `✅ Answer: ${result.answer}`;
       } catch (err) {
-        console.error("Error details:", {
-          questionType: typeof question,
-          contextType: typeof context,
+        console.error("Full error details:", {
+          rawQuestion: questionInput.value,
+          rawContext: contextInput.value,
           error: err
         });
-        answerEl.textContent = "❌ Processing error. Check console.";
+        answerEl.textContent = "❌ Error - See console for details";
       }
     });
   </script>
