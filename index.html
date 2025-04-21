@@ -2,31 +2,13 @@
 <html>
 <head>
     <title>Travel Itinerary Generator</title>
-    <style>
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        textarea, button {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-        }
-        #output {
-            white-space: pre-wrap;
-            border: 1px solid #ccc;
-            padding: 10px;
-            min-height: 200px;
-        }
-    </style>
+    <!-- Keep the same CSS styles -->
 </head>
 <body>
     <div class="container">
         <h1>Travel AI Planner</h1>
-        <textarea id="prompt" rows="4" placeholder="Enter your travel preferences... 
-Example: Create a 3-day cultural itinerary in Tokyo focusing on traditional Japanese experiences"></textarea>
-        <button onclick="generateItinerary()">Generate Itinerary</button>
+        <textarea id="prompt" rows="4" placeholder="Enter your travel preferences..."></textarea>
+        <button id="generateBtn">Generate Itinerary</button>
         <div id="output">Loading model... (This may take 30 seconds first time)</div>
     </div>
 
@@ -38,13 +20,10 @@ Example: Create a 3-day cultural itinerary in Tokyo focusing on traditional Japa
     // Initialize model on page load
     async function initializeModel() {
         try {
-            generator = await pipeline('text-generation', 'Xenova/distilgpt2', {
-                progress_callback: (progress) => {
-                    document.getElementById('output').textContent = 
-                        `Loading model... ${Math.round(progress * 100)}%`;
-                }
-            });
+            generator = await pipeline('text-generation', 'Xenova/distilgpt2');
             document.getElementById('output').textContent = 'Model ready! Enter your request above.';
+            // Enable button after model loads
+            document.getElementById('generateBtn').disabled = false;
         } catch (error) {
             document.getElementById('output').textContent = `Error: ${error.message}`;
         }
@@ -60,27 +39,22 @@ Example: Create a 3-day cultural itinerary in Tokyo focusing on traditional Japa
 
         try {
             document.getElementById('output').textContent = 'Generating...';
-            
             const output = await generator(prompt, {
                 max_new_tokens: 500,
-                temperature: 0.7,
-                repetition_penalty: 1.2,
-                do_sample: true,
-                num_return_sequences: 1
+                temperature: 0.7
             });
-
-            const formattedOutput = output[0].generated_text
-                .replace(/(Day \d:)/g, '\n\n$1\n')
-                .replace(/- /g, '• ');
-
-            document.getElementById('output').innerHTML = formattedOutput;
+            document.getElementById('output').textContent = output[0].generated_text;
         } catch (error) {
             document.getElementById('output').textContent = `Error: ${error.message}`;
         }
     }
 
-    // Start initialization when page loads
-    initializeModel();
+    // Initialize model and set up event listener
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeModel();
+        // Add event listener properly
+        document.getElementById('generateBtn').addEventListener('click', generateItinerary);
+    });
 </script>
 </body>
 </html>
