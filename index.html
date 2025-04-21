@@ -26,8 +26,8 @@
     });
 
     document.getElementById("ask").addEventListener("click", async () => {
-      const context = document.getElementById("context").value.trim();
-      const question = document.getElementById("question").value.trim();
+      const context = 'Transformers.js is a javascript library for NLP tasks.';
+      const question = 'What is Transformers.js';
       const answerEl = document.getElementById("answer");
 
       if (!context || !question) {
