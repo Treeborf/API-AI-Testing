@@ -39,6 +39,9 @@
         const result = await qa({ question, context });
         answerEl.textContent = `✅ Answer: ${result.answer}`;
       } catch (err) {
+        console.log("QUESTION TYPE:", typeof question, question);
+        console.log("CONTEXT TYPE:", typeof context, context);
+
         console.error(err);
         answerEl.textContent = "❌ Something went wrong. Check console for details.";
       }
