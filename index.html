@@ -13,80 +13,55 @@
   <p id="answer"></p>
 
   <script type="module">
-  // Extreme input sanitization version
-  import { env, AutoTokenizer, AutoModelForQuestionAnswering } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js';
+import { env, AutoTokenizer, AutoModelForQuestionAnswering } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js';
 
-  // Configure environment
-  env.allowLocalModels = false;
-  env.useBrowserCache = false;
-  env.backends.onnx.wasm.numThreads = 1;
+// Configure environment
+env.allowLocalModels = false;
+env.useBrowserCache = false;
 
-  // Atomic components initialization
-  let tokenizer, model;
-  
+// Initialize components
+let tokenizer, model;
+try {
+  [tokenizer, model] = await Promise.all([
+    AutoTokenizer.from_pretrained('Xenova/distilbert-base-cased-distilled-squad'),
+    AutoModelForQuestionAnswering.from_pretrained('Xenova/distilbert-base-cased-distilled-squad')
+  ]);
+} catch (err) {
+  document.getElementById('answer').textContent = `❌ Initialization failed: ${err.message}`;
+}
+
+document.getElementById('ask').addEventListener('click', async () => {
+  const context = document.getElementById('context').value;
+  const question = document.getElementById('question').value;
+
   try {
-    [tokenizer, model] = await Promise.all([
-      AutoTokenizer.from_pretrained('Xenova/distilbert-base-cased-distilled-squad', {
-        revision: 'main',
-        auth: null,  // Ensure no auth tokens
-      }),
-      AutoModelForQuestionAnswering.from_pretrained('Xenova/distilbert-base-cased-distilled-squad', {
-        quantized: true,
-      })
-    ]);
-    console.log('Core components loaded');
+    // 1. Proper tokenization with attention masks
+    const inputs = await tokenizer(question, context, {
+      padding: true,
+      truncation: true,
+      return_tensors: 'pt'
+    });
+
+    // 2. Model execution with required inputs
+    const outputs = await model(inputs);
+    
+    // 3. Answer decoding
+    const start = Math.floor(outputs.start_logits.argmax());
+    const end = Math.floor(outputs.end_logits.argmax()) + 1;
+    const answer = await tokenizer.decode(inputs.input_ids[0].slice(start, end));
+    
+    document.getElementById('answer').textContent = `✅ Answer: ${answer}`;
   } catch (err) {
+    console.error('Error breakdown:', {
+      context: context.slice(0, 50),
+      question,
+      error: err.stack
+    });
     document.getElementById('answer').textContent = 
-      `❌ Failed to load model: ${err.message}`;
-    throw err;
+      `❌ Error: ${err.message.split('\n')[0]}`;
   }
-
-  document.getElementById('ask').addEventListener('click', async () => {
-    const rawContext = document.getElementById('context').value;
-    const rawQuestion = document.getElementById('question').value;
-    
-    // Nuclear input sanitization
-    const context = String(rawContext)
-      .replace(/[^\w\s.,!?;:'"-]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 2000);
-    
-    const question = String(rawQuestion)
-      .replace(/[^\w\s?]/g, '')
-      .trim()
-      .substring(0, 100);
-
-    if (!context || !question) {
-      document.getElementById('answer').textContent = '⚠️ Invalid inputs';
-      return;
-    }
-
-    try {
-      // Manual tokenization
-      const inputs = await tokenizer.encode(question, context);
-      console.log('Tokenization succeeded:', inputs);
-
-      // Manual model execution
-      const outputs = await model(inputs);
-      const answer = tokenizer.decode(outputs.start_logits, outputs.end_logits);
-      
-      document.getElementById('answer').textContent = 
-        `✅ Answer: ${answer}`;
-    } catch (err) {
-      console.error('Full error context:', {
-        error: err,
-        context: new TextEncoder().encode(context),
-        question: new TextEncoder().encode(question),
-        tokenizerStatus: !!tokenizer,
-        modelStatus: !!model
-      });
-      
-      document.getElementById('answer').textContent = 
-        `❌ Error: ${err.message.split('\n')[0]}`;
-    }
-  });
-  </script>
+});
+</script>
 
   <!-- Fallback message if WASM fails -->
   <noscript>
