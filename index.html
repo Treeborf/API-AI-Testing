@@ -15,10 +15,6 @@
   <script type="module">
 import { env, AutoTokenizer, AutoModelForQuestionAnswering } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js';
 
-// Configure environment
-env.allowLocalModels = false;
-env.useBrowserCache = false;
-
 // Initialize components
 let tokenizer, model;
 try {
@@ -35,27 +31,33 @@ document.getElementById('ask').addEventListener('click', async () => {
   const question = document.getElementById('question').value;
 
   try {
-    // 1. Proper tokenization with attention masks
+    // 1. Tokenize with correct format
     const inputs = await tokenizer(question, context, {
       padding: true,
-      truncation: true,
-      return_tensors: 'pt'
+      truncation: 'only_second',
+      return_tensors: 'onnx' // Crucial for tensor format
     });
 
-    // 2. Model execution with required inputs
+    // 2. Execute model
     const outputs = await model(inputs);
     
-    // 3. Answer decoding
-    const start = Math.floor(outputs.start_logits.argmax());
-    const end = Math.floor(outputs.end_logits.argmax()) + 1;
-    const answer = await tokenizer.decode(inputs.input_ids[0].slice(start, end));
+    // 3. Process logits correctly
+    const startLogits = Array.from(outputs.start_logits.data);
+    const endLogits = Array.from(outputs.end_logits.data);
+    
+    const startIdx = startLogits.indexOf(Math.max(...startLogits));
+    const endIdx = endLogits.indexOf(Math.max(...endLogits)) + 1;
+
+    // 4. Decode answer
+    const answerTokens = inputs.input_ids.data.slice(startIdx, endIdx);
+    const answer = await tokenizer.decode(answerTokens, { skip_special_tokens: true });
     
     document.getElementById('answer').textContent = `✅ Answer: ${answer}`;
   } catch (err) {
     console.error('Error breakdown:', {
-      context: context.slice(0, 50),
+      context: context?.slice(0, 50),
       question,
-      error: err.stack
+      error: err
     });
     document.getElementById('answer').textContent = 
       `❌ Error: ${err.message.split('\n')[0]}`;
