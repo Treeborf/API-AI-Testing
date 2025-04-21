@@ -1,90 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Transformers.js QA</title>
+  <meta charset="UTF-8">
+  <title>QnA Workaround Solution</title>
 </head>
 <body>
-  <h1>Ask a Question (Transformers.js)</h1>
-
-  <label for="context">🧠 Context:</label><br>
-  <textarea id="context" rows="6" cols="60" placeholder="Paste some context here..."></textarea><br><br>
-
-  <label for="question">❓ Question:</label><br>
-  <input id="question" type="text" size="60" placeholder="Type your question here..."><br><br>
-
-  <button id="ask">Ask!</button>
-
-  <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
+  <h1>Alternative QnA Implementation</h1>
+  
+  <textarea id="context" placeholder="Context..." rows="6" cols="60"></textarea><br>
+  <input id="question" placeholder="Question..." size="60"><br>
+  <button id="ask">Ask</button>
+  <p id="answer"></p>
 
   <script type="module">
-  // Test different versions (uncomment one)
-  // Version 2.15.0 - Known stable for QA models
-  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.15.0/dist/transformers.min.js';
+  // Extreme input sanitization version
+  import { env, AutoTokenizer, AutoModelForQuestionAnswering } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js';
+
+  // Configure environment
+  env.allowLocalModels = false;
+  env.useBrowserCache = false;
+  env.backends.onnx.wasm.numThreads = 1;
+
+  // Atomic components initialization
+  let tokenizer, model;
   
-  // Version 2.16.0 - Alternative stable version
-  // import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0/dist/transformers.min.js';
-
-  // Test different QA models (uncomment one)
-  // const MODEL_NAME = "Xenova/distilbert-base-cased-distilled-squad"; // Original
-  const MODEL_NAME = "Xenova/bert-base-uncased-squad2"; // Larger but more accurate
-  // const MODEL_NAME = "Xenova/mobilebert-uncased-mnli"; // Mobile-optimized
-  // const MODEL_NAME = "Xenova/albert-base-v2-squad2"; // Alternative architecture
-
-  let qa;
   try {
-    qa = await pipeline("question-answering", MODEL_NAME, {
-      quantized: false, // Try with/without quantization
-      progress_callback: (data) => {
-        console.log(`Downloading ${data.file}: ${(data.progress * 100).toFixed(1)}%`);
-      }
-    });
-    
-    // Quick test of model with known input
-    const testResult = await qa({
-      question: "What is Transformers.js?",
-      context: "Transformers.js is a JavaScript library that brings natural language processing capabilities to the browser."
-    });
-    console.log("Model test passed:", testResult.answer);
+    [tokenizer, model] = await Promise.all([
+      AutoTokenizer.from_pretrained('Xenova/distilbert-base-cased-distilled-squad', {
+        revision: 'main',
+        auth: null,  // Ensure no auth tokens
+      }),
+      AutoModelForQuestionAnswering.from_pretrained('Xenova/distilbert-base-cased-distilled-squad', {
+        quantized: true,
+      })
+    ]);
+    console.log('Core components loaded');
   } catch (err) {
-    console.error("Model initialization failed:", err);
-    document.getElementById("answer").textContent = 
-      `❌ Failed to load ${MODEL_NAME}. Check console.`;
+    document.getElementById('answer').textContent = 
+      `❌ Failed to load model: ${err.message}`;
+    throw err;
   }
 
-  document.getElementById("ask").addEventListener("click", async () => {
-    if (!qa) return;
-
-    const context = String(document.getElementById("context").value.trim());
-    const question = String(document.getElementById("question").value.trim());
-    const answerEl = document.getElementById("answer");
+  document.getElementById('ask').addEventListener('click', async () => {
+    const rawContext = document.getElementById('context').value;
+    const rawQuestion = document.getElementById('question').value;
+    
+    // Nuclear input sanitization
+    const context = String(rawContext)
+      .replace(/[^\w\s.,!?;:'"-]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 2000);
+    
+    const question = String(rawQuestion)
+      .replace(/[^\w\s?]/g, '')
+      .trim()
+      .substring(0, 100);
 
     if (!context || !question) {
-      answerEl.textContent = "⚠️ Please fill out both fields";
+      document.getElementById('answer').textContent = '⚠️ Invalid inputs';
       return;
     }
 
     try {
-      answerEl.textContent = "⏳ Thinking...";
-      console.log("Input - Question:", question, "Context:", context.slice(0, 50) + "...");
+      // Manual tokenization
+      const inputs = await tokenizer.encode(question, context);
+      console.log('Tokenization succeeded:', inputs);
+
+      // Manual model execution
+      const outputs = await model(inputs);
+      const answer = tokenizer.decode(outputs.start_logits, outputs.end_logits);
       
-      // Add timing and error context
-      const start = performance.now();
-      const result = await qa({ question, context });
-      const duration = performance.now() - start;
-      
-      answerEl.textContent = `✅ Answer (${duration.toFixed(0)}ms): ${result.answer}`;
-      console.log("Full result:", result);
+      document.getElementById('answer').textContent = 
+        `✅ Answer: ${answer}`;
     } catch (err) {
-      console.error("Runtime error:", {
+      console.error('Full error context:', {
         error: err,
-        questionType: typeof question,
-        contextType: typeof context,
-        inputs: { question, context }
+        context: new TextEncoder().encode(context),
+        question: new TextEncoder().encode(question),
+        tokenizerStatus: !!tokenizer,
+        modelStatus: !!model
       });
-      answerEl.textContent = `❌ Error: ${err.message.split('\n')[0]}`;
+      
+      document.getElementById('answer').textContent = 
+        `❌ Error: ${err.message.split('\n')[0]}`;
     }
   });
   </script>
+
+  <!-- Fallback message if WASM fails -->
+  <noscript>
+    <p style="color: red">JavaScript is required for this application.</p>
+  </noscript>
 </body>
 </html>
