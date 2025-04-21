@@ -20,8 +20,8 @@
   <script type="module">
     import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
 
-    const qa = await pipeline("question-answering", null, {
-      localFilesOnly: false
+    const qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad", {
+      localFilesOnly: false,
     });
 
     document.getElementById("ask").addEventListener("click", async () => {
