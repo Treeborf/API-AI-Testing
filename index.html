@@ -17,11 +17,22 @@
 
   <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
 
-  <script type="module">
-    import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+  <script>
+    // Initialize pipeline outside event handler
+    let qa;
 
-    const qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad", {
-      localFilesOnly: false,
+    async function initializePipeline() {
+      const { pipeline } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
+      qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad");
+    }
+
+    // Initialize on window load
+    window.addEventListener('load', async () => {
+      try {
+        await initializePipeline();
+      } catch (error) {
+        console.error('Pipeline initialization failed:', error);
+      }
     });
 
     document.getElementById("ask").addEventListener("click", async () => {
@@ -29,21 +40,35 @@
       const question = document.getElementById("question").value.trim();
       const answerEl = document.getElementById("answer");
 
+      // Enhanced input validation
       if (!context || !question) {
         answerEl.textContent = "⚠️ Please fill out both context and question.";
         return;
       }
 
+      // Verify string types explicitly
+      if (typeof context !== 'string' || typeof question !== 'string') {
+        answerEl.textContent = "❌ Invalid input types";
+        return;
+      }
+
       try {
         answerEl.textContent = "⏳ Thinking...";
-        const result = await qa({ question, context });
+        
+        // Force string conversion
+        const result = await qa({
+          question: String(question),
+          context: String(context)
+        });
+        
         answerEl.textContent = `✅ Answer: ${result.answer}`;
       } catch (err) {
-        console.log("QUESTION TYPE:", typeof question, question);
-        console.log("CONTEXT TYPE:", typeof context, context);
-
-        console.error(err);
-        answerEl.textContent = "❌ Something went wrong. Check console for details.";
+        console.error("Error details:", {
+          questionType: typeof question,
+          contextType: typeof context,
+          error: err
+        });
+        answerEl.textContent = "❌ Processing error. Check console.";
       }
     });
   </script>
