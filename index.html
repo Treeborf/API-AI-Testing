@@ -51,12 +51,6 @@
       return;
     }
 
-    // Type checks
-    if (typeof question !== 'string' || typeof context !== 'string') {
-      answerEl.textContent = "❌ Inputs must be strings.";
-      return;
-    }
-
     // Log input details
     console.log("QUESTION:", JSON.stringify(question), "TYPE:", typeof question);
     console.log("CONTEXT:", JSON.stringify(context), "TYPE:", typeof context);
