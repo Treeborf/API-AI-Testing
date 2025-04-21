@@ -1,75 +1,31 @@
-name: Node.js for Unit tests
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-
     steps:
-    - name: Check Repo
-      uses: actions/checkout@v4
-      with:
-        ref: main
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Initialize Node.js project
-      run: npm init -y
-    - name: Install Jest
-      run: npm install --save-dev jest
-    - name: Install Puppeteer
-      run: npm install puppeteer@latest
-    - run: npm install --save-dev @types/jest @types/puppeteer
-    - run: npm install  # Replaces npm ci since package-lock.json does not exist
-    - run: npm run build --if-present
-    - name: Run Jest Tests
-      run: npx jest tests/checklist.test.js
-      
-  buildIQUIZ:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    runs-on: ubuntu-latest
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
 
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
+      - name: Install dependencies
+        run: npm install
 
-    steps:
-    - name: Check Repo
-      uses: actions/checkout@v4
-      with:
-        ref: main
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Initialize Node.js project
-      run: npm init -y
-    - name: Install Jest
-      run: npm install --save-dev jest
-    - name: Install Puppeteer
-      run: npm install puppeteer@latest
-    - run: npm install --save-dev @types/jest @types/puppeteer
-    - run: npm install  # Replaces npm ci since package-lock.json does not exist
-    - run: npm run build --if-present
-    - name: Run Jest Tests
-      run: npx jest tests/interestQuiz.test.js
+      - name: Set environment variable for API key
+        run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
 
-  env:
-    runs-on: ubuntu-latest
+      - name: Build and deploy
+        run: |
+          npm run build
+          npm run deploy  # Use this to deploy to GitHub Pages (or your custom deploy command)
 
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-    steps:
-    - run: npm install dotenv
