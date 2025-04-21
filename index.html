@@ -1,104 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Travel Planner</title>
-    <!-- Update transformers.js to latest version -->
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.4.2/dist/transformers.min.js"></script>
-    <script src="https://mlc.ai/web-llm/dist/index.js"></script>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="../css/styles.css">
-    <style>
-        /* Your existing styles here */
-    </style>
+  <meta charset="UTF-8" />
+  <title>Transformers.js QA</title>
 </head>
 <body>
-    <!-- Back to Home button -->
-    <a href="../index.html" class="home-button">Back to Home</a>
+  <h1>Ask a Question (Transformers.js)</h1>
 
-    <div id="map"></div>
-    <div id="airplaneBookingAPI">
-        <a href="flightBooking.html" id="airplaneBookingAPI">Book a flight</a>
-    </div>
-    
-    <div id="chat-container">
-        <h1>AI Travel Planner</h1>
-        
-        <!-- Add loading indicator -->
-        <div id="loading" style="display: none;">Loading AI model...</div>
-        
-        <textarea id="userInput" placeholder="Ask for travel plans..."></textarea>
-        <button onclick="askAI()">Ask AI</button>
-        <div id="response">AI Response will appear here...</div>
-        
-        <div class="button-group">
-            <form action="plans.html">
-                <button type="submit">Save plan</button>
-            </form>
-            <a href="checklist.html" class="checklist-button">Travel Checklist</a>
-        </div>
-    </div>
+  <label for="context">🧠 Context:</label><br>
+  <textarea id="context" rows="6" cols="60" placeholder="Paste some context here..."></textarea><br><br>
 
-    <script>
-        // AI Implementation
-        let qaPipeline;
-        let developerContext = `Travel context: You're an expert travel planner. 
-            Suggest itineraries, packing lists, and cultural tips. 
-            Recommend budget-friendly options and local experiences.`;
+  <label for="question">❓ Question:</label><br>
+  <input id="question" type="text" size="60" placeholder="Type your question here..."><br><br>
 
-        async function loadModel() {
-            document.getElementById('loading').style.display = 'block';
-            try {
-                qaPipeline = await transformers.pipeline(
-                    'question-answering', 
-                    'Xenova/distilbert-base-uncased-distilled-squad'
-                );
-                document.getElementById('loading').style.display = 'none';
-            } catch (error) {
-                console.error('Error loading model:', error);
-                document.getElementById('loading').style.display = 'none';
-                alert('AI failed to initialize. Please refresh the page.');
-            }
-        }
+  <button id="ask">Ask!</button>
 
-        async function askAI() {
-            const question = document.getElementById('userInput').value;
-            const responseDiv = document.getElementById('response');
-            
-            if (!question) {
-                responseDiv.innerText = "Please enter a travel question!";
-                return;
-            }
+  <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
 
-            try {
-                responseDiv.innerText = "Analyzing your request...";
-                
-                if (!qaPipeline) await loadModel();
-                
-                const result = await qaPipeline({
-                    question: question,
-                    context: developerContext
-                });
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
 
-                responseDiv.innerText = result.answer || "I need more information to help with that.";
-            } catch (error) {
-                console.error(error);
-                responseDiv.innerText = "Error processing request. Please try again.";
-            }
-        }
+    const qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad", {
+      localFilesOnly: false,
+    });
 
-        // Initialize AI when page loads
-        window.onload = function() {
-            loadModel();
-            // Initialize your map here if needed
-        };
-    </script>
-    
-    <script src="../js/map.js" defer></script>
+    document.getElementById("ask").addEventListener("click", async () => {
+      const context = document.getElementById("context").value.trim();
+      const question = document.getElementById("question").value.trim();
+      const answerEl = document.getElementById("answer");
+
+      if (!context || !question) {
+        answerEl.textContent = "⚠️ Please fill out both context and question.";
+        return;
+      }
+
+      try {
+        answerEl.textContent = "⏳ Thinking...";
+        const result = await qa({ question, context });
+        answerEl.textContent = `✅ Answer: ${result.answer}`;
+      } catch (err) {
+        console.log("QUESTION TYPE:", typeof question, question);
+        console.log("CONTEXT TYPE:", typeof context, context);
+
+        console.error(err);
+        answerEl.textContent = "❌ Something went wrong. Check console for details.";
+      }
+    });
+  </script>
 </body>
 </html>
-
-
-
