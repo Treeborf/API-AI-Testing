@@ -18,62 +18,73 @@
   <p id="answer" style="margin-top: 20px; font-weight: bold;">Answer will appear here...</p>
 
   <script type="module">
-  import { pipeline, AutoTokenizer } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@latest/dist/transformers.min.js';
+  // Test different versions (uncomment one)
+  // Version 2.15.0 - Known stable for QA models
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.15.0/dist/transformers.min.js';
+  
+  // Version 2.16.0 - Alternative stable version
+  // import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0/dist/transformers.min.js';
 
-  // Initialize with error handling
+  // Test different QA models (uncomment one)
+  const MODEL_NAME = "Xenova/distilbert-base-cased-distilled-squad"; // Original
+  // const MODEL_NAME = "Xenova/bert-base-uncased-squad2"; // Larger but more accurate
+  // const MODEL_NAME = "Xenova/mobilebert-uncased-mnli"; // Mobile-optimized
+  // const MODEL_NAME = "Xenova/albert-base-v2-squad2"; // Alternative architecture
+
   let qa;
   try {
-    [qa] = await Promise.all([
-      pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad"),
-      (async () => {
-        const tokenizer = await AutoTokenizer.from_pretrained("Xenova/distilbert-base-cased-distilled-squad");
-        const testInputs = {
-          question: "Test question",
-          context: "Test context"
-        };
-        const encoded = tokenizer.encode(testInputs.question, testInputs.context);
-        console.log("Tokenizer sanity check:", encoded);
-      })()
-    ]);
+    qa = await pipeline("question-answering", MODEL_NAME, {
+      quantized: false, // Try with/without quantization
+      progress_callback: (data) => {
+        console.log(`Downloading ${data.file}: ${(data.progress * 100).toFixed(1)}%`);
+      }
+    });
+    
+    // Quick test of model with known input
+    const testResult = await qa({
+      question: "What is Transformers.js?",
+      context: "Transformers.js is a JavaScript library that brings natural language processing capabilities to the browser."
+    });
+    console.log("Model test passed:", testResult.answer);
   } catch (err) {
-    console.error("Initialization failed:", err);
-    document.getElementById("answer").textContent = "❌ Initialization error. Check console.";
+    console.error("Model initialization failed:", err);
+    document.getElementById("answer").textContent = 
+      `❌ Failed to load ${MODEL_NAME}. Check console.`;
   }
 
   document.getElementById("ask").addEventListener("click", async () => {
+    if (!qa) return;
+
     const context = String(document.getElementById("context").value.trim());
     const question = String(document.getElementById("question").value.trim());
     const answerEl = document.getElementById("answer");
 
     if (!context || !question) {
-      answerEl.textContent = "⚠️ Please fill out both context and question.";
+      answerEl.textContent = "⚠️ Please fill out both fields";
       return;
     }
-
-    // Type checks
-    if (typeof question !== 'string' || typeof context !== 'string') {
-      answerEl.textContent = "❌ Inputs must be strings.";
-      return;
-    }
-
-    // Log input details
-    console.log("QUESTION:", JSON.stringify(question), "TYPE:", typeof question);
-    console.log("CONTEXT:", JSON.stringify(context), "TYPE:", typeof context);
 
     try {
       answerEl.textContent = "⏳ Thinking...";
+      console.log("Input - Question:", question, "Context:", context.slice(0, 50) + "...");
       
-      // Optional: Test with hard-coded values
-      // const context = "Transformers.js is a JS library for NLP.";
-      // const question = "What is Transformers.js?";
-
+      // Add timing and error context
+      const start = performance.now();
       const result = await qa({ question, context });
-      answerEl.textContent = `✅ Answer: ${result.answer}`;
+      const duration = performance.now() - start;
+      
+      answerEl.textContent = `✅ Answer (${duration.toFixed(0)}ms): ${result.answer}`;
+      console.log("Full result:", result);
     } catch (err) {
-      console.error("Pipeline error:", err);
-      answerEl.textContent = "❌ Error. Check console.";
+      console.error("Runtime error:", {
+        error: err,
+        questionType: typeof question,
+        contextType: typeof context,
+        inputs: { question, context }
+      });
+      answerEl.textContent = `❌ Error: ${err.message.split('\n')[0]}`;
     }
   });
-</script>
+  </script>
 </body>
 </html>
