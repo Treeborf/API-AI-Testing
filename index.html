@@ -24,7 +24,7 @@
     let qa;
     (async function init() {
       try {
-        qa = await pipeline("question-answering", "Xenova/mobilebert-uncased-squad-v2"), {
+        qa = await pipeline("question-answering", "Xenova/mobilebert-uncased-squad-v2", {
           quantized: true,  // Ensure model quantization
           progress_callback: (info) => console.log('Loading:', info)
         });
