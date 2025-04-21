@@ -19,7 +19,7 @@
 
   <script type="module">
     // npm i @huggingface/transformers
-    import { pipeline } from '@huggingface/transformers';
+    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
 
     const qa = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad", {
       localFilesOnly: false,
