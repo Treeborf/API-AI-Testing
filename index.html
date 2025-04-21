@@ -13,19 +13,23 @@
   <p id="answer"></p>
 
   <script type="module">
-    import {pipeline} from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
-    const question_answerer = pipeline("question-answering", model='distilbert-base-cased-distilled-squad')
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
 
-    const context = r"""
-    Extractive Question Answering is the task of extracting an answer from a text given a question. An example     of a
-    question answering dataset is the SQuAD dataset, which is entirely based on that task. If you would like to fine-tune
-    a model on a SQuAD task, you may leverage the examples/pytorch/question-answering/run_squad.py script.
-    """
-    
-    const result = question_answerer(const question="What is a good example of a question answering dataset?",     context=context)
-    print(
-    f"Answer: '{result['answer']}', score: {round(result['score'], 4)}, start: {result['start']}, end: {result['end']}"
-    
-  <script>
+  // Initialize the QA pipeline
+  const question_answerer = await pipeline("question-answering", "Xenova/distilbert-base-cased-distilled-squad");
+
+  // Define context and question
+  const context = "France's capital is Paris.";
+  const question = "What is the capital of France?"; // Fixed question to match context
+
+  // Get answer
+  const result = await question_answerer({
+    question: question,
+    context: context,
+  });
+
+  // Log results
+  console.log(`Answer: "${result.answer}", score: ${result.score.toFixed(4)}, start: ${result.start}, end: ${result.end}`);
+</script>
 </body>
 </html>
