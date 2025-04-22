@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Travel Itinerary Generator</title>
+    <title>Language Translator</title>
     <style>
-        /* Add loading animation */
+        /* Existing styles remain the same */
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -21,26 +21,27 @@
 </head>
 <body>
     <div class="container">
-        <h1>Travel AI Planner</h1>
-        <textarea id="prompt" rows="4"></textarea>
-        <button id="generateBtn" disabled>Generate Itinerary</button>
+        <h1>Language Translator</h1>
+        <textarea id="inputText" rows="4" placeholder="Enter text to translate..."></textarea>
+        <button id="translateBtn" disabled>Translate</button>
         <div id="output"></div>
     </div>
 
 <script type="module">
     import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
 
-    let generator;
-    let isGenerating = false;
+    let translator;
+    let isTranslating = false;
 
     async function initializeModel() {
         try {
             document.getElementById('output').innerHTML = `
                 <div class="loader"></div>
-                <div>Downloading model (300MB)...</div>
+                <div>Downloading translation model (~500MB)...</div>
             `;
             
-            generator = await pipeline('text-generation', 'Xenova/distilgpt2', {
+            // Load a translation model (English to French in this example)
+            translator = await pipeline('translation', 'Xenova/opus-mt-en-fr', {
                 quantized: true,
                 progress_callback: (progress) => {
                     document.getElementById('output').innerHTML = `
@@ -50,56 +51,45 @@
                 }
             });
 
-            document.getElementById('generateBtn').disabled = false;
-            document.getElementById('output').textContent = 'Ready!';
+            document.getElementById('translateBtn').disabled = false;
+            document.getElementById('output').textContent = 'Ready to translate!';
         } catch (error) {
             document.getElementById('output').textContent = `Error: ${error.message}`;
         }
     }
 
-    async function generateItinerary() {
-        if (isGenerating) return;
+    async function translateText() {
+        if (isTranslating) return;
         
         try {
-            isGenerating = true;
-            const btn = document.getElementById('generateBtn');
+            isTranslating = true;
+            const btn = document.getElementById('translateBtn');
             const output = document.getElementById('output');
             btn.disabled = true;
             output.innerHTML = `<div class="loader"></div>`;
             
-            // Use setTimeout to keep UI responsive
-            const prompt = document.getElementById('prompt').value;
-            const runGeneration = () => new Promise(resolve => {
+            const inputText = document.getElementById('inputText').value;
+            const runTranslation = () => new Promise(resolve => {
                 setTimeout(async () => {
-                    const result = await generator(prompt, {
-                        max_new_tokens: 300,
-                        temperature: 0.9,
-                        do_sample: true
+                    const result = await translator(inputText, {
+                        max_length: 400  // Adjust based on your needs
                     });
                     resolve(result);
                 }, 0);
             });
 
-            const response = await runGeneration();
-            output.textContent = response[0].generated_text;
+            const response = await runTranslation();
+            output.textContent = response[0].translation_text;
         } catch (error) {
             document.getElementById('output').textContent = `Error: ${error.message}`;
         } finally {
-            isGenerating = false;
-            document.getElementById('generateBtn').disabled = false;
+            isTranslating = false;
+            document.getElementById('translateBtn').disabled = false;
         }
     }
 
-    // Initialize with Web Worker for better performance
-    if (window.Worker) {
-        const worker = new Worker('worker.js');
-        worker.onmessage = (e) => {
-            document.getElementById('output').textContent = e.data;
-        };
-    }
-
     document.addEventListener('DOMContentLoaded', initializeModel);
-    document.getElementById('generateBtn').addEventListener('click', generateItinerary);
+    document.getElementById('translateBtn').addEventListener('click', translateText);
 </script>
 </body>
 </html>
